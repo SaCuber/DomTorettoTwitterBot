@@ -11,9 +11,12 @@ consumer_secret = credentials["cs"]
 access_token = ""
 access_secret = ""
 
+with open("filtered_terms.txt", "r") as f:
+    filtered_terms = f.read().splitlines()
+
 answers = [
     "Did I hear someone say Family? Nothing's more important than family!",
-    "Did someone say Family? Family's the most important thing!"
+    "Did someone say Family? Family's the most important thing!",
     "Family? Nothing's more important than family!"
 ]
 
@@ -26,6 +29,14 @@ with open("user_blacklist.txt", "r") as f:
     blacklist = f.read().splitlines()
 
 auth = tweepy.OAuthHandler(consumer_key, consumer_secret, "oob")
+
+def filter(text):
+    r = True
+    text = text.lower()
+    for term in filtered_terms:
+        if term in text:
+            r = False
+    return r
 
 def get_access():
     try:
@@ -61,23 +72,26 @@ else:
 
 api = tweepy.API(auth)
 
-print("\nStarting...\n")
+print(f"\n[{time.localtime().tm_hour}:{time.localtime().tm_min}:{time.localtime().tm_sec}]Starting...\n")
 try:
     while True:
         tweets = api.search("family", count=1, result_type="recent")
         for tweet in tweets:
             text = tweet.text
-            if "family" in text.lower():
+            if "family" in text.lower() and filter(text):
                 if not tweet.id_str in replied and not tweet.user.id_str in blacklist:
-                    print(f"\n Tweet found: {text}")
+                    print(f"\n[{time.localtime().tm_hour}:{time.localtime().tm_min}:{time.localtime().tm_sec}] Tweet found: {text}")
                     print(f'Tweet by {tweet.user.screen_name}')
                     print(f'Responding...')
-                    api.update_status(status= random.choice(answers), in_reply_to_status_id = tweet.id, auto_populate_reply_metadata=True)
-                    print("Responded")
+                    try:
+                        api.update_status(status=answers[random.randint(0, 2)], in_reply_to_status_id = tweet.id, auto_populate_reply_metadata=True)
+                        print("Responded")
+                    except Exception as e:
+                        print(e)
                     replied.append(tweet.id_str)
                     recent_replies.append(tweet.id_str)
-                    print("Waiting 1 Minute...\n")
-                    time.sleep(60)
+                    print("Waiting 30 minutes...\n")
+                    time.sleep(1800)
 except KeyboardInterrupt:
     print("\n\nShutting Down")
     with open("tweets.txt", "a") as f:
@@ -87,4 +101,4 @@ except KeyboardInterrupt:
     print("Stopping...")
     quit()
 except Exception as e:
-    print(e)    
+    print(f"[{time.localtime().tm_hour}:{time.localtime().tm_min}:{time.localtime().tm_sec}] An Exception Ocurred: {e}")    
